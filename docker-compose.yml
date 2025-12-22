@@ -1,0 +1,39 @@
+services:
+  app:
+    build: .
+    container_name: josh-store-json-blob
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - MONGO_URI=mongodb://mongo:27017/jsonblobs
+    depends_on:
+      - mongo
+    networks:
+      - internal
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.josh-store.rule=Host(`josh.rewrit.es`)"
+      - "traefik.http.routers.josh-store.entrypoints=websecure"
+      - "traefik.http.routers.josh-store.tls=true"
+      - "traefik.http.routers.josh-store.tls.certresolver=letsencrypt"
+      - "traefik.http.services.josh-store.loadbalancer.server.port=3000"
+      - "traefik.docker.network=traefik"
+
+  mongo:
+    image: mongo:7
+    container_name: josh-store-mongo
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+  traefik:
+    external: true
+
+volumes:
+  mongo_data:

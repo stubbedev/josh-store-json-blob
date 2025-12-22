@@ -8,6 +8,22 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://mongo:27017/jsonblobs';
 // Middleware
 app.use(express.json({ limit: '10mb' }));
 
+// Health endpoint (GET only)
+app.get('/health', async (req, res) => {
+  try {
+    const dbState = mongoose.connection.readyState;
+    const isDbConnected = dbState === 1;
+    
+    res.status(isDbConnected ? 200 : 503).json({
+      status: isDbConnected ? 'healthy' : 'unhealthy',
+      mongo: isDbConnected ? 'connected' : 'disconnected',
+      uptime: process.uptime()
+    });
+  } catch (error) {
+    res.status(503).json({ status: 'unhealthy', error: error.message });
+  }
+});
+
 // MongoDB Schema
 const logSchema = new mongoose.Schema({
   sessionId: {
@@ -27,8 +43,11 @@ const logSchema = new mongoose.Schema({
 
 const Log = mongoose.model('Log', logSchema);
 
-// Only accept POST requests - reject all other methods
+// Only accept POST requests for non-health endpoints
 app.all('*', (req, res, next) => {
+  if (req.path === '/health') {
+    return next();
+  }
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed. Only POST requests are accepted.' });
   }
@@ -39,7 +58,7 @@ app.all('*', (req, res, next) => {
 app.post('/:sessionId', async (req, res) => {
   try {
     const { sessionId } = req.params;
-    
+
     // Validate UUID format (basic validation)
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(sessionId)) {

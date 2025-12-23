@@ -1,7 +1,8 @@
 services:
   app:
+    env_file: .env
+    container_name: "${TRAEFIK_ROUTER_NAME}"
     build: .
-    container_name: josh-store-json-blob
     restart: unless-stopped
     environment:
       - NODE_ENV=production
@@ -13,14 +14,14 @@ services:
       - web
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.josh-store.rule=Host(`josh.rewrit.es`)"
-      - "traefik.http.routers.josh-store.entrypoints=websecure"
-      - "traefik.http.routers.josh-store.tls=true"
-      - "traefik.http.routers.josh-store.tls.certresolver=letsencrypt"
-      - "traefik.http.services.josh-store.loadbalancer.server.port=3000"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_NAME}.rule=Host(`${TRAEFIK_HOST}`)"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_NAME}.entrypoints=websecure"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_NAME}.tls.certresolver=letsencrypt"
+      - "traefik.http.services.${TRAEFIK_ROUTER_NAME}.loadbalancer.server.port=${TRAEFIK_PORT}"
+
   mongo:
     image: mongo:7
-    container_name: josh-store-mongo
+    container_name: josh_store_mongo
     restart: unless-stopped
     volumes:
       - mongo_data:/data/db

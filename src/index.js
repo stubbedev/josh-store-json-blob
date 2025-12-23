@@ -19,12 +19,12 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  
+
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }
-  
+
   next();
 });
 
@@ -41,7 +41,7 @@ app.get('/health', async (req, res) => {
   try {
     const dbState = mongoose.connection.readyState;
     const isDbConnected = dbState === 1;
-    
+
     res.status(isDbConnected ? 200 : 503).json({
       status: isDbConnected ? 'healthy' : 'unhealthy',
       mongo: isDbConnected ? 'connected' : 'disconnected',
@@ -79,12 +79,41 @@ const logSchema = new mongoose.Schema({
 const Log = mongoose.model('Log', logSchema);
 
 /**
- * Middleware to enforce POST-only requests (except /health endpoint)
+ * Export all data as downloadable JSON file
+ * @route GET /export
+ * @returns {File} 200 - JSON file download with all logs
+ * @returns {Object} 500 - Internal server error
+ */
+app.get('/export', async (req, res) => {
+  try {
+    const logs = await Log.find({}).sort({ createdAt: 1 }).lean();
+
+    const data = logs.map(log => ({
+      id: log._id.toString(),
+      sessionId: log.sessionId,
+      data: log.data,
+      createdAt: log.createdAt.toISOString()
+    }));
+
+    // Set headers for file download
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T').join('_');
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="export-${timestamp}.json"`);
+
+    res.json(data);
+  } catch (error) {
+    console.error('Error exporting data:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Middleware to enforce POST-only requests (except /health and /export endpoints)
  * @middleware
  * @returns {Object} 405 - Method not allowed error for non-POST requests
  */
 app.all('*', (req, res, next) => {
-  if (req.path === '/health') {
+  if (req.path === '/health' || req.path === '/export') {
     return next();
   }
   if (req.method !== 'POST') {

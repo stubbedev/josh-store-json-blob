@@ -1,14 +1,42 @@
+/**
+ * @file JSON Blob Storage Service
+ * @description Express server that stores JSON blobs with session IDs in MongoDB
+ */
+
 const express = require('express');
 const mongoose = require('mongoose');
 
 const app = express();
+
+/** @type {number} Server port from environment or default 3000 */
 const PORT = process.env.PORT || 3000;
+
+/** @type {string} MongoDB connection URI */
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://mongo:27017/jsonblobs';
 
-// Middleware
+// CORS Middleware - Allow all origins
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  
+  next();
+});
+
+// JSON body parser middleware
 app.use(express.json({ limit: '10mb' }));
 
-// Health endpoint (GET only)
+/**
+ * Health check endpoint
+ * @route GET /health
+ * @returns {Object} 200 - Health status object
+ * @returns {Object} 503 - Unhealthy status object
+ */
 app.get('/health', async (req, res) => {
   try {
     const dbState = mongoose.connection.readyState;
@@ -24,7 +52,13 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// MongoDB Schema
+/**
+ * MongoDB Schema for log entries
+ * @typedef {Object} LogSchema
+ * @property {string} sessionId - UUID session identifier (indexed)
+ * @property {*} data - Mixed type data payload
+ * @property {Date} createdAt - Timestamp of log creation
+ */
 const logSchema = new mongoose.Schema({
   sessionId: {
     type: String,
@@ -41,9 +75,14 @@ const logSchema = new mongoose.Schema({
   }
 });
 
+/** @type {mongoose.Model} Log model */
 const Log = mongoose.model('Log', logSchema);
 
-// Only accept POST requests for non-health endpoints
+/**
+ * Middleware to enforce POST-only requests (except /health endpoint)
+ * @middleware
+ * @returns {Object} 405 - Method not allowed error for non-POST requests
+ */
 app.all('*', (req, res, next) => {
   if (req.path === '/health') {
     return next();
@@ -54,7 +93,15 @@ app.all('*', (req, res, next) => {
   next();
 });
 
-// POST endpoint to store logs
+/**
+ * Store JSON blob endpoint
+ * @route POST /:sessionId
+ * @param {string} sessionId - UUID session identifier (must be valid UUID format)
+ * @param {Object} req.body - JSON data to store
+ * @returns {Object} 201 - Success response with log details
+ * @returns {Object} 400 - Invalid session ID error
+ * @returns {Object} 500 - Internal server error
+ */
 app.post('/:sessionId', async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -84,7 +131,10 @@ app.post('/:sessionId', async (req, res) => {
   }
 });
 
-// Connect to MongoDB and start server
+/**
+ * Initialize MongoDB connection and start Express server
+ * @async
+ */
 mongoose.connect(MONGO_URI)
   .then(() => {
     console.log('Connected to MongoDB');

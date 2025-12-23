@@ -14,6 +14,7 @@ services:
       - web
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=web"
       - "traefik.http.routers.${TRAEFIK_ROUTER_NAME}.rule=Host(`${TRAEFIK_HOST}`)"
       - "traefik.http.routers.${TRAEFIK_ROUTER_NAME}.entrypoints=websecure"
       - "traefik.http.routers.${TRAEFIK_ROUTER_NAME}.tls=true"

@@ -16,6 +16,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.${TRAEFIK_ROUTER_NAME}.rule=Host(`${TRAEFIK_HOST}`)"
       - "traefik.http.routers.${TRAEFIK_ROUTER_NAME}.entrypoints=websecure"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_NAME}.tls=true"
       - "traefik.http.routers.${TRAEFIK_ROUTER_NAME}.tls.certresolver=letsencrypt"
       - "traefik.http.services.${TRAEFIK_ROUTER_NAME}.loadbalancer.server.port=${TRAEFIK_PORT}"
 
